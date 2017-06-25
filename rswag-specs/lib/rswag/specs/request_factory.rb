@@ -33,12 +33,11 @@ module Rswag
 
       def build_headers(example)
         headers = Hash[ parameters_in(:header).map { |p| [ p[:name], example.send(p[:name]).to_s ] } ]
-        headers['Authorization'] = @api_metadata[:basic_auth] if @api_metadata[:basic_auth]
         headers.tap do |h|
           produces = @api_metadata[:operation][:produces] || @global_metadata[:produces]
           consumes = @api_metadata[:operation][:consumes] || @global_metadata[:consumes]
-          h['ACCEPT'] = produces.join(';') unless produces.nil?
-          h['CONTENT_TYPE'] = consumes.join(';') unless consumes.nil?
+          h['Accept'] = produces.join(';') unless produces.nil?
+          h['Content-Type'] = consumes.join(';') unless consumes.nil?
         end
       end
 
@@ -53,7 +52,7 @@ module Rswag
 
         applicable_params
           .map { |p| p['$ref'] ? resolve_parameter(p['$ref']) : p } # resolve any references
-          .concat(resolve_api_key_parameters)
+          .concat(security_parameters)
           .select { |p| p[:in] == location }
       end
 
@@ -64,17 +63,24 @@ module Rswag
         defined_params[key]
       end
 
-      def resolve_api_key_parameters
-        @api_key_params ||= begin
-          # First figure out the security requirement applicable to the operation
-          global_requirements = (@global_metadata[:security] || [] ).map { |r| r.keys.first }
-          operation_requirements = (@api_metadata[:operation][:security] || [] ).map { |r| r.keys.first }
-          requirements = global_requirements | operation_requirements
-
-          # Then obtain the scheme definitions for those requirements
-          definitions = (@global_metadata[:securityDefinitions] || {}).slice(*requirements)
-          definitions.values.select { |d| d[:type] == :apiKey }
+      def security_parameters
+        applicable_security_schemes.map do |scheme|
+          if scheme[:type] == :apiKey
+            { name: scheme[:name], type: :string, in: scheme[:in] }
+          else
+            { name: 'Authorization', type: :string, in: :header } # use auth header for basic & oauth2
+          end
         end
+      end
+
+      def applicable_security_schemes
+        # First figure out the security requirement applicable to the operation
+        global_requirements = (@global_metadata[:security] || []).map { |r| r.keys.first }
+        operation_requirements = (@api_metadata[:operation][:security] || []).map { |r| r.keys.first }
+        security_requirements = global_requirements | operation_requirements
+
+        # Then obtain the scheme definitions for those requirements
+        (@global_metadata[:securityDefinitions] || {}).slice(*security_requirements).values
       end
 
       def build_query_string_part(param, value)

@@ -45,6 +45,9 @@ RSpec.configure do |config|
         }
       },
       securityDefinitions: {
+        basic_auth: {
+          type: :basic
+        },
         api_key: {
           type: :apiKey,
           name: 'api_key',
@@ -52,7 +55,7 @@ RSpec.configure do |config|
         }
       },
       security: [
-        { api_key: [] }
+        { api_key: [], basic_auth: [] }
       ]
     }
   }

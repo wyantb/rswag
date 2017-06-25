@@ -193,13 +193,30 @@ module Rswag
           end
         end
 
-        context "http_auth 'header' set" do
+        context "global definition for 'basic auth'" do
           before do
-            api_metadata[:basic_auth] = 'Basic YXNkZjp4'
+            global_metadata[:securityDefinitions] = { basic_auth: { type: :basic} }
+            allow(example).to receive(:'Authorization').and_return('Basic foobar')
           end
 
-          it 'returns a hash of names with example values' do
-            expect(headers).to eq({ 'Authorization' => 'Basic YXNkZjp4' })
+          context 'global requirement' do
+            before { global_metadata[:security] = [ { basic_auth: [] } ] }
+
+            it "includes a corresponding Authorization header" do
+              expect(headers).to match(
+                'Authorization' => 'Basic foobar'
+              )
+            end
+          end
+
+          context 'operation-specific requirement' do
+            before { api_metadata[:operation][:security] = [ { basic_auth: [] } ] }
+
+            it "includes a corresponding Authorization header" do
+              expect(headers).to match(
+                'Authorization' => 'Basic foobar'
+              )
+            end
           end
         end
 
@@ -211,8 +228,8 @@ module Rswag
 
           it "includes corresponding 'Accept' & 'Content-Type' headers" do
             expect(headers).to match(
-              'ACCEPT' => 'application/json;application/xml',
-              'CONTENT_TYPE' => 'application/json;application/xml'
+              'Accept' => 'application/json;application/xml',
+              'Content-Type' => 'application/json;application/xml'
             )
           end
         end
@@ -227,8 +244,8 @@ module Rswag
 
           it "includes corresponding 'Accept' & 'Content-Type' headers" do
             expect(headers).to match(
-              'ACCEPT' => 'application/json;application/xml',
-              'CONTENT_TYPE' => 'application/json;application/xml'
+              'Accept' => 'application/json;application/xml',
+              'Content-Type' => 'application/json;application/xml'
             )
           end
         end
